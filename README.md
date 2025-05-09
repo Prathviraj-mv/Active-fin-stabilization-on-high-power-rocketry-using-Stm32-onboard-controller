@@ -1,5 +1,8 @@
 Active fin stabilization on high power rocketry using Stm32 onboard flight controller.
 
-# CAD
+# CAD :
 <img src="CAD/combinbed v14.png" >
 <img src="CAD/combinbed v16.png" >
+
+# CIRCUIT :
+<img src="CAD/combinbed v14.png" >
