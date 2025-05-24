@@ -6,8 +6,7 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 
 
 <img src="IMAGES/Screenshot 2025-05-09 195816.png" >
-
-| <img src= "IMAGES/IMG_20250524_194445.jpg" > | <img src="IMAGES/IMG_20250524_194429.jpg" > |
-| --------------------------- | --------------------------- |
+<img src= "IMAGES/IMG_20250524_194445.jpg" > 
+<img src="IMAGES/IMG_20250524_194429.jpg" > 
 
 
