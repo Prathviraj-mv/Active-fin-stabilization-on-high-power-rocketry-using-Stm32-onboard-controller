@@ -1,122 +1,123 @@
-
 #include <Wire.h>
+#include <Servo.h>
+#include <MPU6050.h>
 #include <Adafruit_BMP085_U.h>
 #include <Adafruit_Sensor.h>
-#include <MPU6050_light.h>
 
-#define LED_PIN PC13
-
-MPU6050 mpu(Wire);
+Servo servo1;
+Servo servo2;
+MPU6050 mpu;
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
-// Angle offsets
-float angleX_offset = 0;
-float angleY_offset = 0;
-float angleZ_offset = 0;
+const int minAngle = 60;
+const int maxAngle = 120;
+const int ledPin = PC13;
+
+unsigned long previousLEDTime = 0;
+const unsigned long ledInterval = 2000;
+bool ledState = false;
+
+float pitchOffset = 0;
+float rollOffset = 0;
 
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
   Serial.begin(115200);
-  Wire.begin();
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH); 
 
-  // Rapid LED blink for 3 seconds
-  unsigned long startTime = millis();
-  while (millis() - startTime < 3000) {
-    digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-    delay(200);
-  }
-  digitalWrite(LED_PIN, LOW);
+  // Attach servos and do warm-up movement
+  servo1.attach(A0);
+  servo2.attach(A1);
+  servo1.write(130); delay(500);
+  servo1.write(60); delay(500);
+  servo1.write(90);  delay(500);
 
-  // Initialize BMP180
-  Serial.println("Initializing BMP180...");
-  if (!bmp.begin()) {
-    Serial.println("BMP180 not found!");
-    while (1);
-  }
-  Serial.println("BMP180 ready.");
+  servo2.write(130); delay(500);
+  servo2.write(60); delay(500);
+  servo2.write(90);  delay(500);
 
   // Initialize MPU6050
-  Serial.println("Initializing MPU6050...");
-  if (mpu.begin() != 0) {
-    Serial.println("MPU6050 init failed!");
-    while (1);
-  }
-  Serial.println("MPU6050 ready.");
-  delay(1000);
-  mpu.calcOffsets();  // Sensor offsets
-
-  // === Calibrate Angles to 0 over 2 seconds ===
-  Serial.println("Calibrating MPU6050 angles to 0...");
-  unsigned long calibStart = millis();
-  int count = 0;
-  float sumX = 0, sumY = 0, sumZ = 0;
-
-  while (millis() - calibStart < 2000) {
-    mpu.update();
-    sumX += mpu.getAngleX();
-    sumY += mpu.getAngleY();
-    sumZ += mpu.getAngleZ();
-    count++;
-    delay(10);  // Let sensor settle
+  Wire.begin();
+  mpu.initialize();
+  if (!mpu.testConnection()) {
+    Serial.println("MPU6050 connection failed!");
+  } else {
+    Serial.println("MPU6050 connected.");
   }
 
-  angleX_offset = sumX / count;
-  angleY_offset = sumY / count;
-  angleZ_offset = sumZ / count;
+  // Initialize BMP180
+  if (!bmp.begin()) {
+    Serial.println("BMP180 not found. Check wiring.");
+  } else {
+    Serial.println("BMP180 connected.");
+  }
 
-  Serial.println("Calibration complete.");
+  // Calibrate MPU6050 pitch and roll
+  Serial.println("Calibrating MPU6050 (2s)...");
+  float pitchSum = 0, rollSum = 0;
+  int samples = 0;
+  unsigned long startTime = millis();
+  while (millis() - startTime < 2000) {
+    int16_t ax, ay, az, gx, gy, gz;
+    mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+    float pitch = atan2(ay, sqrt(ax * ax + az * az)) * 180.0 / PI;
+    float roll  = atan2(-ax, sqrt(ay * ay + az * az)) * 180.0 / PI;
+
+    pitchSum += pitch;
+    rollSum += roll;
+    samples++;
+    delay(10);
+  }
+  pitchOffset = pitchSum / samples;
+  rollOffset = rollSum / samples;
+  Serial.print("Pitch Offset: "); Serial.println(pitchOffset);
+  Serial.print("Roll Offset: "); Serial.println(rollOffset);
+
+  Serial.println("System ready.");
 }
 
-unsigned long lastPrint = 0;
-unsigned long lastBlink = 0;
-
 void loop() {
-  mpu.update();
-
-  // Print sensor data every 500ms
-  if (millis() - lastPrint >= 500) {
-    lastPrint = millis();
-
-    // MPU6050 Angles (Calibrated)
-    float angleX = mpu.getAngleX() - angleX_offset;
-    float angleY = mpu.getAngleY() - angleY_offset;
-    float angleZ = mpu.getAngleZ() - angleZ_offset;
-
-    Serial.print("Angle X: ");
-    Serial.print(angleX, 2);
-    Serial.print(" | Y: ");
-    Serial.print(angleY, 2);
-    Serial.print(" | Z: ");
-    Serial.print(angleZ, 2);
-
-    // BMP180 data
-    sensors_event_t event;
-    bmp.getEvent(&event);
-    if (event.pressure) {
-      float temperature;
-      bmp.getTemperature(&temperature);
-
-      Serial.print(" | Temp: ");
-      Serial.print(temperature);
-      Serial.print(" *C");
-
-      Serial.print(" | Pressure: ");
-      Serial.print(event.pressure);
-      Serial.print(" hPa");
-
-      Serial.print(" | Altitude: ");
-      Serial.print(bmp.pressureToAltitude(1013.25, event.pressure));
-      Serial.println(" m");
-    } else {
-      Serial.println("BMP180 error!");
-    }
+  unsigned long currentTime = millis();
+  if (currentTime - previousLEDTime >= ledInterval) {
+    previousLEDTime = currentTime;
+    ledState = !ledState;
+    digitalWrite(ledPin, ledState ? LOW : HIGH);
   }
 
-  // LED blink every 5 seconds
-  if (millis() - lastBlink >= 5000) {
-    lastBlink = millis();
-    digitalWrite(LED_PIN, HIGH);
-    delay(200);
-    digitalWrite(LED_PIN, LOW);
+  // Read MPU6050 data
+  int16_t ax, ay, az, gx, gy, gz;
+  mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+  float pitch = atan2(ay, sqrt(ax * ax + az * az)) * 180.0 / PI - pitchOffset;
+  float roll  = atan2(-ax, sqrt(ay * ay + az * az)) * 180.0 / PI - rollOffset;
+
+  int angleOffsetX = constrain(map((int)pitch, -40, 40, -40, 40), -40, 40);
+  int angleOffsetY = constrain(map((int)roll,  -40, 40, -40, 40), -40, 40);
+
+  int servo1Angle = constrain(90 + angleOffsetX, minAngle, maxAngle);
+  int servo2Angle = constrain(90 + angleOffsetY, minAngle, maxAngle);
+
+  servo1.write(servo1Angle);
+  servo2.write(servo2Angle);
+
+  // Read BMP180 sensor
+  sensors_event_t event;
+  bmp.getEvent(&event);
+  float temperature;
+  bmp.getTemperature(&temperature);
+
+  Serial.print("Pitch: "); Serial.print(pitch, 1);
+  Serial.print(" | Roll: "); Serial.print(roll, 1);
+  Serial.print(" | Servo1: "); Serial.print(servo1Angle);
+  Serial.print(" | Servo2: "); Serial.print(servo2Angle);
+
+  if (event.pressure) {
+    Serial.print(" | Pressure: "); Serial.print(event.pressure);
+    Serial.print(" hPa | Temp: "); Serial.print(temperature, 1); Serial.println(" C");
+  } else {
+    Serial.println(" | BMP180 read error");
   }
+
+  delay(200);
 }
