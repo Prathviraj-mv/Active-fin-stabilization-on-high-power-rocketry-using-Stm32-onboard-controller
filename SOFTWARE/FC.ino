@@ -4,14 +4,9 @@
 #include <Adafruit_BMP085_U.h>
 #include <Adafruit_Sensor.h>
 
-Servo servo1;
-Servo servo2;
-MPU6050 mpu;
-Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
-
 const int minAngle = 60;
 const int maxAngle = 120;
-const int ledPin = PC13;
+const int ledPin = PC13; // LED pin
 
 unsigned long previousLEDTime = 0;
 const unsigned long ledInterval = 2000;
@@ -19,24 +14,37 @@ bool ledState = false;
 
 float pitchOffset = 0;
 float rollOffset = 0;
+float groundPressure = 1013.25; // Ground reference pressure in hPa
+
+Servo servo1; // Servo 1
+Servo servo2; // Servo 2
+
+MPU6050 mpu;
+Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
+
+// Map float values (like Arduino's map() but for float)
+float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 void setup() {
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, HIGH); 
 
-  // Attach servos and do warm-up movement
   servo1.attach(A0);
   servo2.attach(A1);
+
+  // Servo test motion
   servo1.write(130); delay(500);
   servo1.write(60); delay(500);
-  servo1.write(90);  delay(500);
+  servo1.write(90); delay(500);
 
   servo2.write(130); delay(500);
   servo2.write(60); delay(500);
-  servo2.write(90);  delay(500);
+  servo2.write(90); delay(500);
 
-  // Initialize MPU6050
+  // Initialize I2C
   Wire.begin();
   mpu.initialize();
   if (!mpu.testConnection()) {
@@ -45,14 +53,25 @@ void setup() {
     Serial.println("MPU6050 connected.");
   }
 
-  // Initialize BMP180
   if (!bmp.begin()) {
     Serial.println("BMP180 not found. Check wiring.");
   } else {
     Serial.println("BMP180 connected.");
+
+    // Set ground pressure reference
+    sensors_event_t event;
+    bmp.getEvent(&event);
+    if (event.pressure) {
+      groundPressure = event.pressure;
+      Serial.print("Ground pressure set to: ");
+      Serial.print(groundPressure);
+      Serial.println(" hPa (reference for 0m altitude)");
+    } else {
+      Serial.println("Failed to read ground pressure for altitude calibration.");
+    }
   }
 
-  // Calibrate MPU6050 pitch and roll
+  // Calibrate MPU6050
   Serial.println("Calibrating MPU6050 (2s)...");
   float pitchSum = 0, rollSum = 0;
   int samples = 0;
@@ -61,7 +80,8 @@ void setup() {
     int16_t ax, ay, az, gx, gy, gz;
     mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-    float pitch = atan2(ay, sqrt(ax * ax + az * az)) * 180.0 / PI;
+    // NOTE: Update this if your MPU orientation changes!
+    float pitch = atan2(az, sqrt(ax * ax + ay * ay)) * 180.0 / PI;
     float roll  = atan2(-ax, sqrt(ay * ay + az * az)) * 180.0 / PI;
 
     pitchSum += pitch;
@@ -89,11 +109,13 @@ void loop() {
   int16_t ax, ay, az, gx, gy, gz;
   mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-  float pitch = atan2(ay, sqrt(ax * ax + az * az)) * 180.0 / PI - pitchOffset;
+  // Change these lines if MPU orientation is different
+  float pitch = atan2(az, sqrt(ax * ax + ay * ay)) * 180.0 / PI - pitchOffset;
   float roll  = atan2(-ax, sqrt(ay * ay + az * az)) * 180.0 / PI - rollOffset;
 
-  int angleOffsetX = constrain(map((int)pitch, -40, 40, -40, 40), -40, 40);
-  int angleOffsetY = constrain(map((int)roll,  -40, 40, -40, 40), -40, 40);
+  // Use float mapping for precision
+  int angleOffsetX = constrain((int)mapFloat(pitch, -40.0, 40.0, -40.0, 40.0), -40, 40);
+  int angleOffsetY = constrain((int)mapFloat(roll, -40.0, 40.0, -40.0, 40.0), -40, 40);
 
   int servo1Angle = constrain(90 + angleOffsetX, minAngle, maxAngle);
   int servo2Angle = constrain(90 + angleOffsetY, minAngle, maxAngle);
@@ -113,8 +135,10 @@ void loop() {
   Serial.print(" | Servo2: "); Serial.print(servo2Angle);
 
   if (event.pressure) {
+    float altitude = bmp.pressureToAltitude(groundPressure, event.pressure, temperature);
     Serial.print(" | Pressure: "); Serial.print(event.pressure);
-    Serial.print(" hPa | Temp: "); Serial.print(temperature, 1); Serial.println(" C");
+    Serial.print(" hPa | Temp: "); Serial.print(temperature, 1); Serial.print(" C");
+    Serial.print(" | Altitude: "); Serial.print(altitude, 2); Serial.println(" m");
   } else {
     Serial.println(" | BMP180 read error");
   }
