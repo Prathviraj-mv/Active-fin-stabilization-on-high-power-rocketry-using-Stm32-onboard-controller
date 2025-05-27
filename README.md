@@ -7,9 +7,12 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 # CIRCUIT :
 <img src= "IMAGES/IMG_20250222_185927.jpg" width=50% >
 
-# FRONT VIEW:
+# VIEWS:
 
-<img src= "IMAGES/IMG_20250524_201250.jpg" >
+| <img src= "IMAGES/IMG_20250524_201250.jpg" > | <img src="IMAGES/IMG_20250524_200005.jpg" > |
+| --------------------------- | --------------------------- |
+
+
 
 # CAD :
 
@@ -18,9 +21,9 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 
 <img src="IMAGES/Screenshot 2025-05-09 195816.png" >
 
-# BACK VIEW
 
 
- <img src="IMAGES/IMG_20250524_200005.jpg" >
+
+ 
 
 
