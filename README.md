@@ -5,7 +5,7 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 ![screencapture-easyeda-editor-2025-05-27-20_41_04](https://github.com/user-attachments/assets/1f7bda50-4b95-4a84-987c-6ac54aa292df)
 
 # CIRCUIT :
-<img src= "IMAGES/IMG_20250222_185927.jpg" >
+<img src= "IMAGES/IMG_20250222_185927.jpg" width=50% >
 
 # FRONT VIEW:
 
@@ -15,6 +15,7 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 
 | <img src= "IMAGES/combinbed v14.png" > | <img src="IMAGES/combinbed v16.png" > |
 | --------------------------- | --------------------------- |
+
 <img src="IMAGES/Screenshot 2025-05-09 195816.png" >
 
 # BACK VIEW
