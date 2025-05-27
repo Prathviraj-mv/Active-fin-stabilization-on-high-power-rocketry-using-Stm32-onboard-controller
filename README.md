@@ -9,7 +9,7 @@ In high-speed rocketry, stability and accurate trajectory control are crucial fo
 
 # VIEWS:
 
-| <img src= "IMAGES/IMG_20250524_201250 (1).jpg" > | <img src="IMAGES/IMG_20250524_200005 (1).jpg" height=95% > |
+| <img src= "IMAGES/IMG_20250524_201250 (1).jpg" > | <img src="IMAGES/IMG_20250524_200005 (1).jpg" height=90% > |
 | --------------------------- | --------------------------- |
 
 
